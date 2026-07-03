@@ -1,0 +1,4 @@
+import crypto from 'crypto';
+function key(){ const raw=process.env.CERT_ENCRYPTION_KEY_BASE64; if(!raw) throw new Error('CERT_ENCRYPTION_KEY_BASE64 is required'); const k=Buffer.from(raw,'base64'); if(k.length!==32) throw new Error('CERT_ENCRYPTION_KEY_BASE64 must decode to 32 bytes'); return k; }
+export function encryptText(plain:string){ const iv=crypto.randomBytes(12); const c=crypto.createCipheriv('aes-256-gcm',key(),iv); const enc=Buffer.concat([c.update(plain,'utf8'),c.final()]); return 'enc:'+Buffer.concat([iv,c.getAuthTag(),enc]).toString('base64'); }
+export function decryptText(payload:string){ if(!payload?.startsWith('enc:')) return payload; const data=Buffer.from(payload.slice(4),'base64'); const iv=data.subarray(0,12), tag=data.subarray(12,28), enc=data.subarray(28); const d=crypto.createDecipheriv('aes-256-gcm',key(),iv); d.setAuthTag(tag); return Buffer.concat([d.update(enc),d.final()]).toString('utf8'); }

@@ -1,0 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { getSettings } from '@/lib/settings';
+export async function GET(){ return NextResponse.json(await prisma.certificate.findMany({orderBy:{updatedAt:'desc'}})); }
+export async function POST(req:NextRequest){ const ct=req.headers.get('content-type')??''; const form=ct.includes('json')?await req.json():Object.fromEntries((await req.formData()).entries()); const s=await getSettings(); const commonName=String(form.commonName); const subjectAltNames=String(form.sans||commonName).split(',').map(x=>x.trim()).filter(Boolean); const cert=await prisma.certificate.create({data:{commonName,subjectAltNames,friendlyName:String(form.friendlyName||commonName),caDirectoryUrl:String(form.caDirectoryUrl||s.acmeDirectoryUrl),useCnameDelegation:true,challengeRecord:`_acme-challenge.${commonName.replace(/^\*\./,'')}`,cnameTarget:String(form.cnameTarget||'')||null}}); return ct.includes('json')?NextResponse.json(cert,{status:201}):NextResponse.redirect(new URL(`/certificates/${cert.id}`,req.url)); }

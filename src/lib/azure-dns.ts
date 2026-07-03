@@ -1,0 +1,9 @@
+import { ClientSecretCredential } from '@azure/identity';
+import { DnsManagementClient } from '@azure/arm-dns';
+import { getSettings } from './settings';
+function rel(fqdn:string, zone:string){ const f=fqdn.replace(/\.$/,''); const z=zone.replace(/\.$/,''); return f===z?'@':f.endsWith('.'+z)?f.slice(0,-(z.length+1)):f; }
+export async function cnameTargetForDomain(domain:string){ const s=await getSettings(); return `${domain.replace(/^\*\./,'').replace(/\./g,'-')}.${s.azureValidationDnsZone}`; }
+async function dnsClient(){ const s=await getSettings(); const cred=new ClientSecretCredential(s.azureTenantId,s.azureClientId,s.azureClientSecret); return { dns:new DnsManagementClient(cred,s.azureSubscriptionId), s }; }
+export async function upsertValidationTxt(domain:string,value:string){ const {dns,s}=await dnsClient(); const target=await cnameTargetForDomain(domain); const name=rel(target,s.azureValidationDnsZone); await dns.recordSets.createOrUpdate(s.azureValidationDnsResourceGroup,s.azureValidationDnsZone,name,'TXT',{ttl:Number(s.azureDnsTtl||'60'),txtRecords:[{value:[value]}]}); return {zone:s.azureValidationDnsZone,name,fqdn:target}; }
+export async function deleteValidationTxt(domain:string){ const {dns,s}=await dnsClient(); const target=await cnameTargetForDomain(domain); const name=rel(target,s.azureValidationDnsZone); await dns.recordSets.deleteMethod(s.azureValidationDnsResourceGroup,s.azureValidationDnsZone,name,'TXT').catch(()=>undefined); }
+export async function upsertChallengeCname(domain:string){ const {dns,s}=await dnsClient(); const challenge=`_acme-challenge.${domain.replace(/^\*\./,'')}`; const target=await cnameTargetForDomain(domain); const name=rel(challenge,s.azurePrimaryDnsZone); await dns.recordSets.createOrUpdate(s.azurePrimaryDnsResourceGroup,s.azurePrimaryDnsZone,name,'CNAME',{ttl:Number(s.azureDnsTtl||'60'),cnameRecord:{cname:target}}); return {zone:s.azurePrimaryDnsZone,name,target}; }
