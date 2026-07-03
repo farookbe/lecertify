@@ -11,7 +11,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@azure/arm-dns": "^6.0.0",
+    "@azure/arm-dns": "^5.1.0",
     "@azure/identity": "^4.5.0",
     "@prisma/client": "^5.22.0",
     "acme-client": "^5.4.0",
